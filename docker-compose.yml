@@ -7,7 +7,7 @@ services:
   web:
     build: .
     container_name: py_docx_fastapi_web
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./src:/app
     ports:
