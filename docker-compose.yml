@@ -1,0 +1,29 @@
+version: '3.8'
+
+volumes:
+  pg_volume_py_docx_fastapi:
+
+services:
+  web:
+    build: .
+    container_name: py_docx_fastapi_web
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./src:/app
+    ports:
+      - "9000:8000"
+    depends_on:
+      - pg_db
+
+
+  pg_db:
+    image: postgres:15-alpine
+    container_name: py_docx_fastapi_postgres
+    ports:
+      - 5437:5432
+    volumes:
+      - pg_volume_py_docx_fastapi:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=py_docx_fastapi
+      - POSTGRES_PASSWORD=py_docx_fastapi
+      - POSTGRES_DB=py_docx_fastapi
