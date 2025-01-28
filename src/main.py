@@ -27,6 +27,8 @@ async def upload_docx(doc_file: UploadFile = File(...)) -> dict:
         for i in range(min(20, len(doc.paragraphs))):
             print(doc.paragraphs[i].text)
 
+        print("type(doc):", type(doc))
+
         return JSONResponse(
             status_code=HTTPStatus.CREATED,
             content={"success": True},
@@ -36,3 +38,6 @@ async def upload_docx(doc_file: UploadFile = File(...)) -> dict:
             status_code=HTTPStatus.BAD_REQUEST,
             content={"error": str(e)},
         )
+
+
+    import psycopg2
