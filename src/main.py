@@ -40,4 +40,42 @@ async def upload_docx(doc_file: UploadFile = File(...)) -> dict:
         )
 
 
-    import psycopg2
+# db test
+import psycopg2
+
+# Database configuration
+DATABASE_CONFIG = {
+    "user": "py_docx_fastapi",
+    "password": "py_docx_fastapi",
+    "host": "pg_db",  # or your host
+    "port": 5432,
+    "database": "py_docx_fastapi",
+}
+
+
+def get_connection():
+    return psycopg2.connect(**DATABASE_CONFIG)
+
+
+@app.on_event("startup")
+async def startup_event():
+    app.db_connection = get_connection()
+
+    app.db_connection.autocommit = True
+    cursor = app.db_connection.cursor()
+
+    # Optionally create a table for testing purposes
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS test_table (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100)
+        );
+    """)
+
+    cursor.close()
+    app.db_connection.close()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    app.db_connection.close()

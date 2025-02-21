@@ -2,6 +2,11 @@
 # Use the official Python image from the Docker Hub
 FROM python:3.10.6-slim
 
+# Install build-essential only if necessary
+RUN apt-get update && \
+    apt-get install -y python3-dev libpq-dev build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
 # Set the working directory in the container
 WORKDIR /app
 
@@ -14,8 +19,3 @@ COPY requirements.txt .
 
 # Install dependencies specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Install build-essential only if necessary
-RUN apt-get update && \
-    apt-get install -y build-essential && \
-    rm -rf /var/lib/apt/lists/*
