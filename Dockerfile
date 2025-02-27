@@ -2,10 +2,13 @@
 # Use the official Python image from the Docker Hub
 FROM python:3.10.6-slim
 
-# Install build-essential only if necessary
-RUN apt-get update && \
-    apt-get install -y python3-dev libpq-dev build-essential && \
-    rm -rf /var/lib/apt/lists/*
+# Install dependencies needed for psycopg
+RUN apt update && apt install -y \
+    libpq-dev \
+    python3-dev \
+    gcc \
+    postgresql-client \
+    libpq5
 
 # Set the working directory in the container
 WORKDIR /app

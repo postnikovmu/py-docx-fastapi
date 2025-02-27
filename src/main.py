@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 
 from fastapi import UploadFile, File
 from fastapi.responses import JSONResponse
@@ -6,7 +6,49 @@ from http import HTTPStatus
 from docx import Document
 from io import BytesIO
 
-app = FastAPI(docs_url="/docs",)
+from contextlib import asynccontextmanager
+from psycopg_pool import AsyncConnectionPool
+
+def get_conn_str():
+
+    # Database configuration
+    DATABASE_CONFIG = {
+        "host": "pg_db",
+        "port": 5432,
+        "dbname": "py_docx_fastapi",
+        "user": "py_docx_fastapi",
+        "password": "py_docx_fastapi"
+    }
+
+    print('db_name', DATABASE_CONFIG.get('dbname'))
+    return f"""
+    dbname={DATABASE_CONFIG.get('dbname')}
+    user={DATABASE_CONFIG.get('user')}
+    password={DATABASE_CONFIG.get('password')}
+    host={DATABASE_CONFIG.get('host')}
+    port={DATABASE_CONFIG.get('port')}
+    """
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.async_pool = AsyncConnectionPool(conninfo=get_conn_str())
+
+    # Create table if it doesn't exist
+    async with app.async_pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS test_table (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100)
+                );
+            """)
+
+    yield
+    await app.async_pool.close()
+
+
+app = FastAPI(docs_url="/docs", lifespan=lifespan)
 
 
 @app.get("/test")
@@ -40,42 +82,38 @@ async def upload_docx(doc_file: UploadFile = File(...)) -> dict:
         )
 
 
-# db test
-import psycopg2
-
-# Database configuration
-DATABASE_CONFIG = {
-    "user": "py_docx_fastapi",
-    "password": "py_docx_fastapi",
-    "host": "pg_db",  # or your host
-    "port": 5432,
-    "database": "py_docx_fastapi",
-}
-
-
-def get_connection():
-    return psycopg2.connect(**DATABASE_CONFIG)
-
-
 @app.on_event("startup")
 async def startup_event():
-    app.db_connection = get_connection()
-
-    app.db_connection.autocommit = True
-    cursor = app.db_connection.cursor()
-
-    # Optionally create a table for testing purposes
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS test_table (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100)
-        );
-    """)
-
-    cursor.close()
-    app.db_connection.close()
+    pass
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    app.db_connection.close()
+    pass
+
+
+@app.post("/test_table")
+async def insert_into_test_table(name: str):
+    try:
+        async with app.async_pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("""
+                    INSERT INTO test_table (name)
+                    VALUES (%s);
+                """, (name,))
+                await conn.commit()
+                return {"message": "Inserted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/test_table")
+async def read_all_from_test_table():
+    try:
+        async with app.async_pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT * FROM test_table;")
+                results = await cur.fetchall()
+                return [{"id": row[0], "name": row[1]} for row in results]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
