@@ -9,6 +9,12 @@ from io import BytesIO
 from contextlib import asynccontextmanager
 from psycopg_pool import AsyncConnectionPool
 
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from models import Test2
+
+
 def get_conn_str():
 
     # Database configuration
@@ -117,3 +123,18 @@ async def read_all_from_test_table():
                 return [{"id": row[0], "name": row[1]} for row in results]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/test2/")
+async def create_test2(name: str, db: AsyncSession = Depends(get_db)):
+    new_test2 = Test2(name=name)
+    db.add(new_test2)
+    await db.commit()
+    await db.refresh(new_test2)
+    return new_test2
+
+
+@app.get("/test2/{test2_id}")
+async def read_test2(test2_id: int, db: AsyncSession = Depends(get_db)):
+    test2 = await db.get(Test2, test2_id)
+    return test2 if test2 else {"error": "Test2 not found"}
